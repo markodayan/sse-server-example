@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const schedule = require('node-schedule');
 
 const { randomInteger } = require('./utils/index');
 
@@ -17,6 +18,31 @@ const headers = {
   'Cache-Control': 'no-cache'
 }
 
+function backendService (req, res, next) {
+  // every 30 seconds
+  let job = schedule.scheduleJob('*/30 * * * * *', () => {
+    sendMessage(res);
+  })
+
+  req.on('close', () => {
+    job.cancel();
+    console.log('Connection closed (scheduled task cancelled)');
+  });
+}
+
+function sendMessage (res) {
+  let data = {
+    data: Math.floor(Math.random() * 1000000).toString(),
+    time: (new Date()).toLocaleTimeString(),
+  }
+
+  // convert message to string
+  data = JSON.stringify(data);
+  // send message back
+  res.write('event: data\n');
+  res.write('data: ' + data + '\n\n');
+}
+
 function randomiser (req, res) {
   req.client.random = randomInteger(0, 15);
   clients.push(req.client);
@@ -28,6 +54,7 @@ function randomiser (req, res) {
     let randomNumber = randomInteger(0, 15);
     if (randomNumber === req.client.random) {
       res.write("Match Found!: " + req.client.random + "\n");
+      sendMessage(res);
       clearInterval(timer);
       res.end();
     } else {
@@ -41,6 +68,7 @@ function randomiser (req, res) {
 }
 
 app.get('/random', randomiser);
+app.get('/data', backendService);
 
 const PORT = process.env.PORT || 5000;
 

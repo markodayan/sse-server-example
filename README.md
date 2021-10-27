@@ -6,10 +6,14 @@ A server using the EventSource API to stream data to a web client (as an alterna
 
 ## Running in localhost
 
-Launch server:
+Launch server & redis-server:
 
-```
+```bash
+# express server
 node index
+
+## redis
+redis-server
 ```
 
 There is currently no client application so just use curl as shown below to see basic SSE data streamed to client:

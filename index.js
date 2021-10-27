@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const schedule = require('node-schedule');
+const axios = require('axios');
 
+const redis = require('./redis');
 const { randomInteger } = require('./utils/index');
 
 let clients = [];
@@ -18,11 +20,27 @@ const headers = {
   'Cache-Control': 'no-cache'
 }
 
+  // on every 15th second of a minute
+let serverJob = schedule.scheduleJob('*/15 * * * * *', getJoke);
+
+async function getJoke () {
+  let { data } = await axios.get('https://api.chucknorris.io/jokes/random');
+  console.log('Published to redis: ', data.value);
+  redis.setex('joke', 60000, data.value);
+}
+
 function backendService (req, res, next) {
   // every 30 seconds
-  let job = schedule.scheduleJob('*/30 * * * * *', () => {
+  let job = schedule.scheduleJob('*/30 * * * * *', async () => {
     sendMessage(res);
-  })
+    let data = await redis.get('joke');
+
+    if (!data) {
+      res.write('No jokes ready yet!')
+    } else {
+      res.write('joke: ' + data + '\n\n');
+    }
+  });
 
   req.on('close', () => {
     job.cancel();
